@@ -4,6 +4,7 @@ on: [push]
 
 env:
   BUILD_TYPE: Release
+  BENCHMARK_VERSION: v1.9.4
 
 jobs:
   build:
@@ -11,9 +12,34 @@ jobs:
     timeout-minutes: 12
     
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install Python dependencies
+      shell: powershell
+      run: python -m pip install --disable-pip-version-check scipy==1.14.1
+
+    - name: Build Google Benchmark
+      shell: powershell
+      working-directory: ${{github.workspace}}
+      run: |
+        $benchmarkRoot = Join-Path $env:GITHUB_WORKSPACE 'tools\benchmark'
+        if (-not (Test-Path (Join-Path $benchmarkRoot 'build\benchmarkConfig.cmake'))) {
+          if (Test-Path $benchmarkRoot) {
+            Remove-Item -Recurse -Force $benchmarkRoot
+          }
+          git clone --depth 1 --branch $env:BENCHMARK_VERSION --recurse-submodules https://github.com/google/benchmark.git $benchmarkRoot
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake -S $benchmarkRoot -B "$benchmarkRoot\build" -G Ninja -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DBENCHMARK_ENABLE_GTEST_TESTS=OFF -DBENCHMARK_ENABLE_TESTING=OFF
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build "$benchmarkRoot\build" --config Release --parallel 4
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        }
 
     - name: Benchmark
       shell: powershell

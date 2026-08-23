@@ -4,6 +4,7 @@ on: [push]
 
 env:
   BUILD_TYPE: Release
+  BENCHMARK_VERSION: v1.9.4
 
 jobs:
   build:
@@ -11,9 +12,28 @@ jobs:
     timeout-minutes: 10
     
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install Python dependencies
+      shell: bash
+      run: python -m pip install --disable-pip-version-check scipy==1.14.1
+
+    - name: Build Google Benchmark
+      shell: bash
+      working-directory: ${{github.workspace}}
+      run: |
+        if [ ! -f tools/benchmark/build/benchmarkConfig.cmake ]; then
+          rm -rf tools/benchmark
+          git clone --depth 1 --branch "$BENCHMARK_VERSION" --recurse-submodules https://github.com/google/benchmark.git tools/benchmark
+          cmake -S tools/benchmark -B tools/benchmark/build -DCMAKE_BUILD_TYPE=Release -DBENCHMARK_ENABLE_GTEST_TESTS=OFF -DBENCHMARK_ENABLE_TESTING=OFF
+          cmake --build tools/benchmark/build --config Release --parallel 4
+        fi
 
     - name: Benchmark
       shell: bash
