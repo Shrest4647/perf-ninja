@@ -7,11 +7,11 @@ constexpr int maxRandom = 100;
 
 struct S
 {
-  long long l : 16;
-  float d;
-  int i : 7;
-  short s : 7;
+  unsigned l : 14; // 2 bytes
+  unsigned i : 7;  // 1 byte
+  unsigned s : 7;  // 1 byte
   bool b : 1;
+  float d; // 4 bytes
 
   bool operator<(const S &s) const { return this->i < s.i; }
 };
